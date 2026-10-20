@@ -1,7 +1,6 @@
 
 import Hotel from "../models/hotelModel.js";
 
-
 export const createHotel = async (req, res) => {
   try {
     const hotel = await Hotel.create(req.body);
@@ -11,12 +10,11 @@ export const createHotel = async (req, res) => {
   }
 };
 
-
 export const getHotels = async (req, res) => {
   try {
-    const { search, location, roomType } = req.query;
+    const { search, location, roomType, minPrice, maxPrice } = req.query;
 
-    let query = {};
+    const query = {};
 
     if (search) {
       query.hotelName = { $regex: search, $options: "i" };
@@ -30,13 +28,57 @@ export const getHotels = async (req, res) => {
       query.roomType = { $regex: roomType, $options: "i" };
     }
 
+    if (minPrice !== undefined && minPrice !== "") {
+      const min = Number(minPrice);
+
+      if (!Number.isFinite(min) || min < 0) {
+        return res.status(400).json({
+          message: "Invalid minimum price",
+        });
+      }
+
+      query.pricePerNight = {
+        ...query.pricePerNight,
+        $gte: min,
+      };
+    }
+
+    if (maxPrice !== undefined && maxPrice !== "") {
+      const max = Number(maxPrice);
+
+      if (!Number.isFinite(max) || max < 0) {
+        return res.status(400).json({
+          message: "Invalid maximum price",
+        });
+      }
+
+      query.pricePerNight = {
+        ...query.pricePerNight,
+        $lte: max,
+      };
+    }
+
+    if (
+      minPrice !== undefined &&
+      minPrice !== "" &&
+      maxPrice !== undefined &&
+      maxPrice !== "" &&
+      Number(minPrice) > Number(maxPrice)
+    ) {
+      return res.status(400).json({
+        message: "Minimum price cannot exceed maximum price",
+      });
+    }
+
     const hotels = await Hotel.find(query);
-    res.json(hotels);
+    res.status(200).json(hotels);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error("Error fetching hotels:", error);
+    res.status(500).json({
+      message: "Failed to fetch hotels",
+    });
   }
 };
-
 
 export const getHotelById = async (req, res) => {
   try {
@@ -51,7 +93,6 @@ export const getHotelById = async (req, res) => {
     res.status(400).json({ message: "Invalid hotel ID" });
   }
 };
-
 
 export const updateHotel = async (req, res) => {
   try {
@@ -70,7 +111,6 @@ export const updateHotel = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
-
 
 export const deleteHotel = async (req, res) => {
   try {
